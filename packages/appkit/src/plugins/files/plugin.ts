@@ -168,6 +168,7 @@ export class FilesPlugin extends Plugin {
     res: import("express").Response,
     volumeKey: string,
     action: FileAction,
+    path: string,
     resourceOverrides?: Partial<FileResource>,
   ): Promise<boolean> {
     if (!this._hasPolicy(volumeKey)) return true;
@@ -182,11 +183,6 @@ export class FilesPlugin extends Plugin {
       }
       throw error;
     }
-
-    const path =
-      (req.query.path as string | undefined) ??
-      (typeof req.body?.path === "string" ? req.body.path : undefined) ??
-      "/";
 
     try {
       await this._checkPolicy(volumeKey, action, path, user, resourceOverrides);
@@ -550,9 +546,10 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "list"))) return;
-
     const path = req.query.path as string | undefined;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, "list", path ?? "/")))
+      return;
 
     try {
       const result = await this.execute(
@@ -579,9 +576,10 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "read"))) return;
-
     const path = req.query.path as string;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, "read", path))) return;
+
     const valid = this._isValidPath(path);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -641,9 +639,11 @@ export class FilesPlugin extends Plugin {
     volumeKey: string,
     opts: { mode: "download" | "raw" },
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, opts.mode))) return;
-
     const path = req.query.path as string;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, opts.mode, path)))
+      return;
+
     const valid = this._isValidPath(path);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -721,9 +721,11 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "exists"))) return;
-
     const path = req.query.path as string;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, "exists", path)))
+      return;
+
     const valid = this._isValidPath(path);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -757,9 +759,11 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "metadata"))) return;
-
     const path = req.query.path as string;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, "metadata", path)))
+      return;
+
     const valid = this._isValidPath(path);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -793,9 +797,11 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "preview"))) return;
-
     const path = req.query.path as string;
+
+    if (!(await this._enforcePolicy(req, res, volumeKey, "preview", path)))
+      return;
+
     const valid = this._isValidPath(path);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -854,7 +860,7 @@ export class FilesPlugin extends Plugin {
     }
 
     if (
-      !(await this._enforcePolicy(req, res, volumeKey, "upload", {
+      !(await this._enforcePolicy(req, res, volumeKey, "upload", path, {
         size: contentLength,
       }))
     )
@@ -934,10 +940,14 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "mkdir"))) return;
-
     const dirPath =
       typeof req.body?.path === "string" ? req.body.path : undefined;
+
+    if (
+      !(await this._enforcePolicy(req, res, volumeKey, "mkdir", dirPath ?? "/"))
+    )
+      return;
+
     const valid = this._isValidPath(dirPath);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
@@ -976,9 +986,19 @@ export class FilesPlugin extends Plugin {
     connector: FilesConnector,
     volumeKey: string,
   ): Promise<void> {
-    if (!(await this._enforcePolicy(req, res, volumeKey, "delete"))) return;
-
     const rawPath = req.query.path as string | undefined;
+
+    if (
+      !(await this._enforcePolicy(
+        req,
+        res,
+        volumeKey,
+        "delete",
+        rawPath ?? "/",
+      ))
+    )
+      return;
+
     const valid = this._isValidPath(rawPath);
     if (valid !== true) {
       res.status(400).json({ error: valid, plugin: this.name });
